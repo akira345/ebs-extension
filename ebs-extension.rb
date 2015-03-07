@@ -2,21 +2,21 @@
 #
 # http://dev.classmethod.jp/cloud/aws/extends_ebs_volume_attached_ec2_instance/ のやり方をスクリプトにしたものです。
 #
-require "aws-sdk"
+require "aws-sdk-v1"
 require "yaml"
 require "pp"
 require "optparse"
 
-=begin
 opts = OptionParser.new
 ec2_instance_id = nil
 
 opts.on("-i","--instance_id INSTANCE_ID") do |instance_id|
   ec2_instance_id = instance_id
-end 
-raise "Option instance_id Required!" if (ec2_instance_id == nil)
+end
 
-=end
+#引数チェック
+opts.parse!(ARGV)
+raise "Option instance_id Required!" if (ec2_instance_id == nil)
 
 # read config
 config=YAML.load(File.read("./config/config.yml"))
@@ -27,7 +27,7 @@ ec2 = AWS::EC2.new(
 )
 
 # debug
-ec2_instance_id = "xxxxxx"
+#ec2_instance_id = "i-xxxxxxxx"
 
 instance = ec2.instances["#{ec2_instance_id}"]
 if !instance.exists?
