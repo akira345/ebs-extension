@@ -70,6 +70,21 @@ ec2.client.describe_instances(:instance_ids => [instance_id])[:reservation_set].
   }
 }
 # ルートボリュームIDからスナップショットを作成
+volume = ec2.volumes[volume_id]
+if !volume.exists?
+  pp "Volume NotFound!!"
+  exit 1
+end 
+comment = instance_id + "(" + volume_id + ")" + "--" + Time.now.strftime("%Y%m%d%H%M") + '--' + "snapshot"
+snapshot = volume.create_snapshot(comment)
+pp "wait..."
+pp snapshot.status
+sleep (10)
+while snapshot.status != :completed
+  sleep(2)
+  pp "wait..."
+  pp snapshot.status
+end
 
 # スナップショットから容量を拡張したボリュームを作成
 
