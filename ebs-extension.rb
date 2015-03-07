@@ -131,16 +131,16 @@ pp attach_volume.status
 
 # インスタンス起動
 # startup
-  pp "startup"
-  if instance.status == :stopped
-    pp "starting..."
-    instance.start
-    sleep(10)
-    while instance.status != :running
-      sleep(2)
-    end
-    pp "start!"
+pp "startup"
+if instance.status == :stopped
+  pp "starting..."
+  instance.start
+  sleep(10)
+  while instance.status != :running
+    sleep(2)
   end
+  pp "start!"
+end
   
 pp "OK"
 
