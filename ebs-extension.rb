@@ -97,6 +97,21 @@ while new_volume.status != :available
 end
 
 # インスタンスからボリュームをデタッチ
+pp "EBS Detach"
+detach = ec2.client.detach_volume(:volume_id=>volume_id,:instance_id=>instance_id,:device=>"/dev/xvda")
+
+pp detach.status
+if detach.status == :error
+  pp "Error!! Disk Not Found!!"
+  exit 1
+end
+pp "wait..."
+sleep (10)
+while detach.status != :available
+  sleep(2)
+  pp "wait..."
+  pp detach.status
+end
 
 # インスタンスからボリュームをアタッチ
 
