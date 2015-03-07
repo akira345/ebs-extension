@@ -30,6 +30,8 @@ ec2 = AWS::EC2.new(
 #ec2_instance_id = "i-xxxxxxxx"
 
 instance = ec2.instances["#{ec2_instance_id}"]
+instance_id = instance.instance_id
+
 if !instance.exists?
   pp "Instance NotFound!!"
   exit 1
@@ -50,7 +52,24 @@ pp "Shutdown!"
     end
     pp "stop!"
   end
+  
 # インスタンスのebsからスナップショットを作成
+pp "Create snapshot"
+# インスタンスのルートボリュームIDを取得
+volume_id = ""
+instance_id = instance.instance_id
+ec2.client.describe_instances(:instance_ids => [instance_id])[:reservation_set].each {|rs|
+  rs[:instances_set].each {|is|
+    is[:block_device_mapping].each {|bbm|
+      if bbm[:device_name] == "/dev/xvda"
+        pp bbm[:ebs][:volume_id]
+        volume_id =  bbm[:ebs][:volume_id]
+        break
+      end
+    }
+  }
+}
+# ルートボリュームIDからスナップショットを作成
 
 # スナップショットから容量を拡張したボリュームを作成
 
