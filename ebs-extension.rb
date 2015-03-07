@@ -28,6 +28,7 @@ ec2 = AWS::EC2.new(
 # 基本パラメタ
 availability_zone = "ap-northeast-1c"
 volume_size = 30
+device = "/dev/xvda"
 # debug
 #ec2_instance_id = "i-xxxxxxxx"
 
@@ -98,7 +99,7 @@ end
 
 # インスタンスからボリュームをデタッチ
 pp "EBS Detach"
-detach = ec2.client.detach_volume(:volume_id=>volume_id,:instance_id=>instance_id,:device=>"/dev/xvda")
+detach = ec2.client.detach_volume(:volume_id=>volume_id,:instance_id=>instance_id,:device=>device)
 
 pp detach.status
 if detach.status == :error
@@ -107,14 +108,39 @@ if detach.status == :error
 end
 pp "wait..."
 sleep (10)
-while detach.status != :available
-  sleep(2)
-  pp "wait..."
-  pp detach.status
-end
+#while detach.status != :available
+#  sleep(2)
+#  pp "wait..."
+#  pp detach.status
+#end
 
 # インスタンスからボリュームをアタッチ
+attach_volume = ec2.client.attach_volume(:volume_id=>new_volume.id,:instance_id=>instance_id,:device=>device)
+pp attach_volume.status
+
+pp "wait..."
+sleep (10)
+pp attach_volume.status
+
+#while attach_volume.status != :in_use
+#  sleep(2)
+#  pp "wait..."
+#  pp attach_volume.status
+#end
+pp attach_volume.status
 
 # インスタンス起動
-
+# startup
+  pp "startup"
+  if instance.status == :stopped
+    pp "starting..."
+    instance.start
+    sleep(10)
+    while instance.status != :running
+      sleep(2)
+    end
+    pp "start!"
+  end
+  
+pp "OK"
 
