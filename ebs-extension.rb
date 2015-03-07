@@ -25,7 +25,9 @@ ec2_region = "ec2.ap-northeast-1.amazonaws.com"
 ec2 = AWS::EC2.new(
   :ec2_endpoint => ec2_region
 )
-
+# 基本パラメタ
+availability_zone = "ap-northeast-1c"
+volume_size = 30
 # debug
 #ec2_instance_id = "i-xxxxxxxx"
 
@@ -36,9 +38,6 @@ if !instance.exists?
   pp "Instance NotFound!!"
   exit 1
 end 
-
-volume_size = 30
-availability_zone = "ap-northeast-1b"
 
 pp "Shutdown!"
 #インスタンス停止
@@ -87,6 +86,15 @@ while snapshot.status != :completed
 end
 
 # スナップショットから容量を拡張したボリュームを作成
+new_volume = snapshot.create_volume(availability_zone,{:size=>volume_size,:snapshot_id =>snapshot.id,:volume_type=>"standard"})
+pp "wait..."
+pp new_volume.status
+sleep (10)
+while new_volume.status != :available
+  sleep(2)
+  pp "wait..."
+  pp new_volume.status
+end
 
 # インスタンスからボリュームをデタッチ
 
