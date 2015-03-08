@@ -82,13 +82,13 @@ pp "wait..."
 pp snapshot.status
 sleep (10)
 #どうもステータスが更新されないことがあるので、１分待ったら抜ける
-i = 0
+cnt = 0
 while snapshot.status != :completed
   sleep(2)
-  i=i+1
+  cnt += 2
   pp "wait..."
   pp snapshot.status
-  break if i>30
+  break if cnt > 60
 end
 
 # スナップショットから容量を拡張したボリュームを作成
@@ -97,13 +97,13 @@ pp "wait..."
 pp new_volume.status
 sleep (10)
 # どうもステータスが更新されないことがあるので、１分待ったら抜ける
-i = 0
+cnt = 0
 while new_volume.status != :available
   sleep(2)
-  i = i + 1
+  cnt += 2
   pp "wait..."
   pp new_volume.status
-  break if i>30
+  break if cnt > 60
 end
 
 # インスタンスからボリュームをデタッチ
@@ -118,13 +118,13 @@ end
 pp "wait..."
 sleep (10)
 #どうもステータスが更新されないことがあるので、１分待ったら抜ける
-i = 0
+cnt = 0
 while detach.status != :available
   sleep(2)
-  i = i + 1
+  cnt += 2
   pp "wait..."
   pp detach.status
-  break if i>30
+  break if cnt > 60
 end
 
 # インスタンスからボリュームをアタッチ
@@ -139,10 +139,10 @@ pp attach_volume.status
 i = 0
 while attach_volume.status != :in_use
   sleep(2)
-  i = i + 1
+  i = i + 2
   pp "wait..."
   pp attach_volume.status
-  break if i>30
+  break if i>60
 end
 pp attach_volume.status
 
