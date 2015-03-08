@@ -7,6 +7,15 @@ require "yaml"
 require "pp"
 require "optparse"
 
+# read config
+config=YAML.load(File.read("./config/config.yml"))
+AWS.config(config)
+ec2_region = "ec2.ap-northeast-1.amazonaws.com"
+ec2 = AWS::EC2.new(
+  :ec2_endpoint => ec2_region
+)
+
+# 引数設定
 opts = OptionParser.new
 ec2_instance_id = nil
 
@@ -17,42 +26,33 @@ end
 #引数チェック
 opts.parse!(ARGV)
 raise "Option instance_id Required!" if (ec2_instance_id == nil)
-
-# read config
-config=YAML.load(File.read("./config/config.yml"))
-AWS.config(config)
-ec2_region = "ec2.ap-northeast-1.amazonaws.com"
-ec2 = AWS::EC2.new(
-  :ec2_endpoint => ec2_region
-)
-# 基本パラメタ
-availability_zone = "ap-northeast-1c"
-volume_size = 30
-device = "/dev/xvda"
-# debug
-#ec2_instance_id = "i-xxxxxxxx"
-
+#インスタンス存在チェック
 instance = ec2.instances["#{ec2_instance_id}"]
 instance_id = instance.instance_id
-
-#インスタンス存在チェック
 if !instance.exists?
   pp "Instance NotFound!!"
   exit 1
 end 
 
+# 基本パラメタ
+availability_zone = "ap-northeast-1c"
+volume_size = 30    #変更後ディスク容量。現在稼働中のディスク容量以上じゃないとエラーになるので、チェックロジックを入れたほうがいい。
+device = "/dev/xvda" #変更対象デバイス名
+# debug
+#ec2_instance_id = "i-xxxxxxxx"
+
 pp "Shutdown!"
 #インスタンス停止
-  pp "stop"
-  if instance.status == :running
-    pp "stopping..."
-    instance.stop
-    sleep(10)
-    while instance.status != :stopped
-      sleep(2)
-    end
-    pp "stop!"
+pp "stop"
+if instance.status == :running
+  pp "stopping..."
+  instance.stop
+  sleep(10)
+  while instance.status != :stopped
+    sleep(2)
   end
+  pp "stop!"
+end
   
 # インスタンスのebsからスナップショットを作成
 pp "Create snapshot"
@@ -81,24 +81,30 @@ snapshot = volume.create_snapshot(comment)
 pp "wait..."
 pp snapshot.status
 sleep (10)
-#どうもステータスが更新されないことがある。
-#while snapshot.status != :completed
-#  sleep(2)
-#  pp "wait..."
-#  pp snapshot.status
-#end
+#どうもステータスが更新されないことがあるので、１分待ったら抜ける
+i = 0
+while snapshot.status != :completed
+  sleep(2)
+  i=i+1
+  pp "wait..."
+  pp snapshot.status
+  break if i>30
+end
 
 # スナップショットから容量を拡張したボリュームを作成
 new_volume = snapshot.create_volume(availability_zone,{:size=>volume_size,:snapshot_id =>snapshot.id,:volume_type=>"standard"})
 pp "wait..."
 pp new_volume.status
 sleep (10)
-# どうもステータスが更新されないことがある。
-#while new_volume.status != :available
-#  sleep(2)
-#  pp "wait..."
-#  pp new_volume.status
-#end
+# どうもステータスが更新されないことがあるので、１分待ったら抜ける
+i = 0
+while new_volume.status != :available
+  sleep(2)
+  i = i + 1
+  pp "wait..."
+  pp new_volume.status
+  break if i>30
+end
 
 # インスタンスからボリュームをデタッチ
 pp "EBS Detach"
@@ -111,12 +117,15 @@ if detach.status == :error
 end
 pp "wait..."
 sleep (10)
-#どうもステータスが更新されないことがある
-#while detach.status != :available
-#  sleep(2)
-#  pp "wait..."
-#  pp detach.status
-#end
+#どうもステータスが更新されないことがあるので、１分待ったら抜ける
+i = 0
+while detach.status != :available
+  sleep(2)
+  i = i + 1
+  pp "wait..."
+  pp detach.status
+  break if i>30
+end
 
 # インスタンスからボリュームをアタッチ
 attach_volume = ec2.client.attach_volume(:volume_id=>new_volume.id,:instance_id=>instance_id,:device=>device)
@@ -126,12 +135,15 @@ pp "wait..."
 sleep (10)
 pp attach_volume.status
 
-#どうもステータスが更新されないことがある。
-#while attach_volume.status != :in_use
-#  sleep(2)
-#  pp "wait..."
-#  pp attach_volume.status
-#end
+#どうもステータスが更新されないことがあるので、１分待ったら抜ける
+i = 0
+while attach_volume.status != :in_use
+  sleep(2)
+  i = i + 1
+  pp "wait..."
+  pp attach_volume.status
+  break if i>30
+end
 pp attach_volume.status
 
 # インスタンス起動
@@ -148,4 +160,5 @@ if instance.status == :stopped
 end
 
 pp "OK"
+exit 0
 
