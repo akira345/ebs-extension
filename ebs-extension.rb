@@ -35,6 +35,7 @@ device = "/dev/xvda"
 instance = ec2.instances["#{ec2_instance_id}"]
 instance_id = instance.instance_id
 
+#インスタンス存在チェック
 if !instance.exists?
   pp "Instance NotFound!!"
   exit 1
@@ -58,17 +59,17 @@ pp "Create snapshot"
 # インスタンスのルートボリュームIDを取得
 volume_id = ""
 instance_id = instance.instance_id
-ec2.client.describe_instances(:instance_ids => [instance_id])[:reservation_set].each {|rs|
-  rs[:instances_set].each {|is|
-    is[:block_device_mapping].each {|bbm|
-      if bbm[:device_name] == "/dev/xvda"
-        pp bbm[:ebs][:volume_id]
-        volume_id =  bbm[:ebs][:volume_id]
-        break
-      end
+ret = ec2.client.describe_instances(:instance_ids => [instance_id])[:reservation_set]
+  .map{|r| r[:instances_set]
+    .map{|i| i[:block_device_mapping]
+      .select{|b| b[:device_name] == device}
+      .each{|bb|
+        pp bb[:ebs][:volume_id]
+        volume_id = bb[:ebs][:volume_id]
+      }
     }
   }
-}
+
 # ルートボリュームIDからスナップショットを作成
 volume = ec2.volumes[volume_id]
 if !volume.exists?
@@ -80,22 +81,24 @@ snapshot = volume.create_snapshot(comment)
 pp "wait..."
 pp snapshot.status
 sleep (10)
-while snapshot.status != :completed
-  sleep(2)
-  pp "wait..."
-  pp snapshot.status
-end
+#どうもステータスが更新されないことがある。
+#while snapshot.status != :completed
+#  sleep(2)
+#  pp "wait..."
+#  pp snapshot.status
+#end
 
 # スナップショットから容量を拡張したボリュームを作成
 new_volume = snapshot.create_volume(availability_zone,{:size=>volume_size,:snapshot_id =>snapshot.id,:volume_type=>"standard"})
 pp "wait..."
 pp new_volume.status
 sleep (10)
-while new_volume.status != :available
-  sleep(2)
-  pp "wait..."
-  pp new_volume.status
-end
+# どうもステータスが更新されないことがある。
+#while new_volume.status != :available
+#  sleep(2)
+#  pp "wait..."
+#  pp new_volume.status
+#end
 
 # インスタンスからボリュームをデタッチ
 pp "EBS Detach"
@@ -108,6 +111,7 @@ if detach.status == :error
 end
 pp "wait..."
 sleep (10)
+#どうもステータスが更新されないことがある
 #while detach.status != :available
 #  sleep(2)
 #  pp "wait..."
@@ -122,6 +126,7 @@ pp "wait..."
 sleep (10)
 pp attach_volume.status
 
+#どうもステータスが更新されないことがある。
 #while attach_volume.status != :in_use
 #  sleep(2)
 #  pp "wait..."
@@ -141,6 +146,6 @@ if instance.status == :stopped
   end
   pp "start!"
 end
-  
+
 pp "OK"
 
