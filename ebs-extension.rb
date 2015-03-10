@@ -7,6 +7,25 @@ require "yaml"
 require "pp"
 require "optparse"
 
+# Common Functions
+
+#どうもステータスが更新されないことがあるので、n秒待ったら抜ける用関数
+def wait_for_status_changed(target, status, limit, interval)
+
+  elapsed = 0;
+
+  while target.status != status
+    break if elapsed >= limit
+
+    sleep(interval)
+    elapsed += interval
+    
+    pp "wait...  " + elapsed.to_s 
+    pp target.status
+  end 
+
+end
+
 # read config
 config=YAML.load(File.read("./config/config.yml"))
 AWS.config(config)
@@ -82,14 +101,7 @@ pp "wait..."
 pp snapshot.status
 sleep (10)
 #どうもステータスが更新されないことがあるので、１分待ったら抜ける
-cnt = 0
-while snapshot.status != :completed
-  sleep(2)
-  cnt += 2
-  pp "wait..."
-  pp snapshot.status
-  break if cnt > 60
-end
+wait_for_status_changed(snapshot, :completed, 60, 2)
 
 # スナップショットから容量を拡張したボリュームを作成
 new_volume = snapshot.create_volume(availability_zone,{:size=>volume_size,:snapshot_id =>snapshot.id,:volume_type=>"standard"})
@@ -97,14 +109,7 @@ pp "wait..."
 pp new_volume.status
 sleep (10)
 # どうもステータスが更新されないことがあるので、１分待ったら抜ける
-cnt = 0
-while new_volume.status != :available
-  sleep(2)
-  cnt += 2
-  pp "wait..."
-  pp new_volume.status
-  break if cnt > 60
-end
+wait_for_status_changed(new_volume, :available, 60, 2)
 
 # インスタンスからボリュームをデタッチ
 pp "EBS Detach"
@@ -118,14 +123,7 @@ end
 pp "wait..."
 sleep (10)
 #どうもステータスが更新されないことがあるので、１分待ったら抜ける
-cnt = 0
-while detach.status != :available
-  sleep(2)
-  cnt += 2
-  pp "wait..."
-  pp detach.status
-  break if cnt > 60
-end
+wait_for_status_changed(detach, :available, 60, 2)
 
 # インスタンスからボリュームをアタッチ
 attach_volume = ec2.client.attach_volume(:volume_id=>new_volume.id,:instance_id=>instance_id,:device=>device)
@@ -134,17 +132,8 @@ pp attach_volume.status
 pp "wait..."
 sleep (10)
 pp attach_volume.status
-
 #どうもステータスが更新されないことがあるので、１分待ったら抜ける
-i = 0
-while attach_volume.status != :in_use
-  sleep(2)
-  i = i + 2
-  pp "wait..."
-  pp attach_volume.status
-  break if i>60
-end
-pp attach_volume.status
+wait_for_status_changed(attach_volume, :in_use, 60, 2)
 
 # インスタンス起動
 # startup
